@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Inventory Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        .modal-content {
+            transition: transform 0.25s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Vehicle Inventory System</h1>
+            <p class="text-gray-600 mt-2">Manage your vehicle stock in real-time.</p>
+        </header>
+
+        <!-- Add Vehicle Button -->
+        <div class="text-center mb-8">
+            <button id="showAddFormBtn" class="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300">
+                Add New Vehicle
+            </button>
+        </div>
+
+        <!-- Add Vehicle Form (Initially Hidden) -->
+        <div id="addVehicleFormContainer" class="hidden bg-white p-6 rounded-xl shadow-lg mb-8 max-w-2xl mx-auto">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Add a Vehicle</h2>
+            <form id="add-vehicle-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="vehicle-name" class="block text-sm font-medium text-gray-700">Model Name</label>
+                        <input type="text" id="vehicle-name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="vehicle-color" class="block text-sm font-medium text-gray-700">Color</label>
+                        <input type="text" id="vehicle-color" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="vehicle-quantity" class="block text-sm font-medium text-gray-700">Quantity</label>
+                        <input type="number" id="vehicle-quantity" min="1" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="vehicle-wheels" class="block text-sm font-medium text-gray-700">Wheels</label>
+                        <select id="vehicle-wheels" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2">
+                            <option value="4">4 Wheels</option>
+                            <option value="3">3 Wheels</option>
+                            <option value="2">2 Wheels</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-6 text-right">
+                    <button type="button" id="cancelAddBtn" class="mr-2 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-300">Cancel</button>
+                    <button type="submit" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300">Add Vehicle</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Inventory Sections -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 4 Wheels -->
+            <div id="4-wheels-section" class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-1 text-gray-800">4-Wheeled Vehicles</h2>
+                <p id="4-wheels-count" class="text-sm text-gray-500 mb-4">Total items: 0</p>
+                <div id="4-wheels-list" class="space-y-3">
+                    <p class="loading-text text-gray-500">Loading inventory...</p>
+                </div>
+            </div>
+            <!-- 3 Wheels -->
+            <div id="3-wheels-section" class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-1 text-gray-800">3-Wheeled Vehicles</h2>
+                <p id="3-wheels-count" class="text-sm text-gray-500 mb-4">Total items: 0</p>
+                <div id="3-wheels-list" class="space-y-3">
+                    <p class="loading-text text-gray-500">Loading inventory...</p>
+                </div>
+            </div>
+            <!-- 2 Wheels -->
+            <div id="2-wheels-section" class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-1 text-gray-800">2-Wheeled Vehicles</h2>
+                <p id="2-wheels-count" class="text-sm text-gray-500 mb-4">Total items: 0</p>
+                <div id="2-wheels-list" class="space-y-3">
+                     <p class="loading-text text-gray-500">Loading inventory...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform -translate-y-10">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Edit Vehicle</h2>
+            <form id="edit-vehicle-form">
+                <input type="hidden" id="edit-vehicle-id">
+                <div class="space-y-4">
+                    <div>
+                        <label for="edit-vehicle-name" class="block text-sm font-medium text-gray-700">Model Name</label>
+                        <input type="text" id="edit-vehicle-name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="edit-vehicle-color" class="block text-sm font-medium text-gray-700">Color</label>
+                        <input type="text" id="edit-vehicle-color" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="edit-vehicle-quantity" class="block text-sm font-medium text-gray-700">Quantity</label>
+                        <input type="number" id="edit-vehicle-quantity" min="1" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2">
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-3">
+                    <button type="button" id="cancel-edit-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-300">Cancel</button>
+                    <button type="submit" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition duration-300">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center transform -translate-y-10">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Confirm Deletion</h2>
+            <p class="text-gray-600 mb-6">Are you sure you want to delete this item? This action cannot be undone.</p>
+            <div class="flex justify-center space-x-4">
+                <button id="cancel-delete-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-300 transition duration-300">Cancel</button>
+                <button id="confirm-delete-btn" class="bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md hover:bg-red-700 transition duration-300">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        // --- Firebase Configuration ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "your-api-key", authDomain: "your-auth-domain", projectId: "your-project-id" };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- Initialize Firebase ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        setLogLevel('debug'); // Enable detailed Firebase logging for debugging
+
+        let userId = null;
+        let vehiclesCollectionRef = null;
+        let itemToDeleteId = null;
+
+        // --- Authentication ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                console.log("User authenticated with UID:", userId);
+                vehiclesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/vehicles`);
+                
+                await checkAndSeedInitialData();
+                listenForInventoryUpdates();
+
+            } else {
+                console.log("No user signed in. Attempting sign-in...");
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Authentication failed:", error);
+                    document.querySelectorAll('.loading-text').forEach(el => el.textContent = "Authentication Failed.");
+                }
+            }
+        });
+
+        // --- UI Elements ---
+        const addForm = document.getElementById('add-vehicle-form');
+        const editForm = document.getElementById('edit-vehicle-form');
+        const showAddFormBtn = document.getElementById('showAddFormBtn');
+        const addVehicleFormContainer = document.getElementById('addVehicleFormContainer');
+        const cancelAddBtn = document.getElementById('cancelAddBtn');
+        
+        const listElements = {
+            '4': document.getElementById('4-wheels-list'),
+            '3': document.getElementById('3-wheels-list'),
+            '2': document.getElementById('2-wheels-list')
+        };
+        const countElements = {
+            '4': document.getElementById('4-wheels-count'),
+            '3': document.getElementById('3-wheels-count'),
+            '2': document.getElementById('2-wheels-count')
+        };
+        
+        const editModal = document.getElementById('edit-modal');
+        const deleteModal = document.getElementById('delete-modal');
+
+        // --- Functions ---
+        
+        /**
+         * Parses raw text data into structured vehicle objects.
+         */
+        const parseInitialData = (rawData) => {
+            const lines = rawData.trim().split('\n');
+            const vehicles = [];
+            let currentWheels = 0;
+
+            lines.forEach(line => {
+                line = line.trim();
+                if (line.endsWith('wheels')) {
+                    currentWheels = parseInt(line.split('wheels')[0]);
+                    return;
+                }
+                if (!line || currentWheels === 0) return;
+
+                const [namePart, ...rest] = line.split('-').map(s => s.trim());
+                const colorsPart = rest.join('-');
+                if (!colorsPart) return;
+
+                colorsPart.split('/').forEach(entry => {
+                    const match = entry.trim().match(/^(\d+)?\s*(.*)/);
+                    if (match) {
+                        const quantity = parseInt(match[1] || '1', 10);
+                        const color = match[2].trim();
+                        vehicles.push({
+                            name: namePart,
+                            color: color,
+                            quantity: quantity,
+                            wheels: currentWheels.toString()
+                        });
+                    }
+                });
+            });
+            return vehicles;
+        };
+
+        /**
+         * Seeds database with initial data if empty.
+         */
+        async function checkAndSeedInitialData() {
+            if (!vehiclesCollectionRef) return;
+
+            try {
+                const querySnapshot = await getDocs(vehiclesCollectionRef);
+                if (querySnapshot.empty) {
+                    console.log("Database is empty. Seeding initial data...");
+                    const rawData = `
+                        4wheels
+                        Kite SpongeBob - 1purple/ 1green
+                        Kite df 24 4seaters - 1 black
+                        Louda v4 - 1 green
+                        Avia cruiser - 4red/ 4white/ 1metallic blue/ 2 black/ 1 green
+                        Sunshine m6 - 1 green
+                        Kite DF 27+Solar - 2 green/ 2 white/ 3red
+                        Speego s9 Solar - 1pink
+                        Enwei fighter - 1 cream white
+                        Enwei m7 - 1 purple/ 1 red
+                        Sunshine s4 - 1 black
+                        Summer s7 supreme(reserved) - 1red/ 1black/ 1purple
+                        Summer s7 plus solar - 1 yellow
+                        Kite ecar - 1gray without ac/ 1white with ac
+                        Commander v5 - 1 purple
+                        SUMMER N-1 - 1 green
+                        Commander v4 - 1green/ 1 purple
+                        3wheels
+                        Sprinter max 12pc - 6Black/ 1Red/ 5Purple gray
+                        Lightspeeed e cool - 2 brown
+                        Avia mini - 1 blue/ 1 orange
+                        Sunshine 007 - 1blue/ 2 orange/ 1 red
+                        Sunshine x3 - 1green
+                        Sunshine x-force - 3Cream/ 3Purple/ 2Beige/ 2Green
+                        2wheels
+                        Avia tricolor - 1 red/ 1 black
+                        Super 127-B - 1blue
+                        Super 125 - 1 green
+                        S-A 132 - 1black/ 1 blue
+                        S-A 131 - 1black/ 1grayish blue
+                        Summer H2 plus - 2 blue/ 1purple
+                        SA129 - 1black/ 1gray
+                        Skyler - 1green/ 1blue/ 1purple/ 1gray
+                        Avia beta - 1green/ 1purple/ 1 pink/ 1black
+                        Lightspeeed nightwolf - 1 red
+                    `;
+                    const initialVehicles = parseInitialData(rawData);
+                    for (const vehicle of initialVehicles) {
+                        await addDoc(vehiclesCollectionRef, vehicle);
+                    }
+                    console.log("Seeding complete.");
+                } else {
+                    console.log("Database already contains data. Skipping seed.");
+                }
+            } catch (error) {
+                console.error("Error checking/seeding data:", error);
+                document.querySelectorAll('.loading-text').forEach(el => el.textContent = "Error loading data.");
+            }
+        }
+
+        /**
+         * Renders a vehicle card.
+         */
+        const renderVehicleCard = (vehicleData, id) => `
+            <div class="bg-gray-100 p-3 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between" data-id="${id}">
+                <div class="flex-grow mb-2 sm:mb-0">
+                    <p class="font-semibold text-gray-800">${vehicleData.name}</p>
+                    <p class="text-sm text-gray-600">
+                        <span class="font-medium">${vehicleData.color}</span> - Qty: <span class="font-bold">${vehicleData.quantity}</span>
+                    </p>
+                </div>
+                <div class="flex-shrink-0 flex space-x-2">
+                    <button class="edit-btn text-sm bg-yellow-400 hover:bg-yellow-500 text-yellow-800 font-semibold py-1 px-3 rounded-md transition">Edit</button>
+                    <button class="delete-btn text-sm bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md transition">Delete</button>
+                </div>
+            </div>`;
+        
+        /**
+         * Listens for inventory updates and re-renders the UI.
+         */
+        function listenForInventoryUpdates() {
+            if (!vehiclesCollectionRef) return;
+            
+            onSnapshot(vehiclesCollectionRef, (snapshot) => {
+                const vehiclesByWheels = { '4': [], '3': [], '2': [] };
+                
+                snapshot.docs.forEach(doc => {
+                    const vehicle = { ...doc.data(), id: doc.id };
+                    if (vehiclesByWheels[vehicle.wheels]) {
+                        vehiclesByWheels[vehicle.wheels].push(vehicle);
+                    }
+                });
+
+                Object.keys(vehiclesByWheels).forEach(wheelCategory => {
+                    const listEl = listElements[wheelCategory];
+                    const countEl = countElements[wheelCategory];
+                    const vehicles = vehiclesByWheels[wheelCategory];
+
+                    listEl.innerHTML = ''; // Clear the list
+                    countEl.textContent = `Total items: ${vehicles.length}`;
+
+                    if (vehicles.length > 0) {
+                        // Sort alphabetically by name
+                        vehicles.sort((a, b) => a.name.localeCompare(b.name));
+                        vehicles.forEach(v => listEl.innerHTML += renderVehicleCard(v, v.id));
+                    } else {
+                        listEl.innerHTML = `<p class="text-gray-500">No ${wheelCategory}-wheeled vehicles in stock.</p>`;
+                    }
+                });
+
+            }, (error) => {
+                console.error("Snapshot listener error:", error);
+                document.querySelectorAll('.loading-text').forEach(el => el.textContent = "Error listening to updates.");
+            });
+        }
+        
+        // --- Modal Control ---
+        function openModal(modalEl) {
+            modalEl.classList.remove('hidden');
+            setTimeout(() => {
+                modalEl.classList.remove('opacity-0');
+                modalEl.querySelector('.modal-content').classList.remove('-translate-y-10');
+            }, 10);
+        }
+
+        function closeModal(modalEl) {
+            modalEl.classList.add('opacity-0');
+            modalEl.querySelector('.modal-content').classList.add('-translate-y-10');
+            setTimeout(() => modalEl.classList.add('hidden'), 250);
+        }
+
+        // --- Event Listeners ---
+        showAddFormBtn.addEventListener('click', () => {
+            addVehicleFormContainer.classList.remove('hidden');
+            showAddFormBtn.classList.add('hidden');
+        });
+
+        cancelAddBtn.addEventListener('click', () => {
+            addVehicleFormContainer.classList.add('hidden');
+            showAddFormBtn.classList.remove('hidden');
+            addForm.reset();
+        });
+
+        addForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!vehiclesCollectionRef) return console.error("Database not ready.");
+            try {
+                await addDoc(vehiclesCollectionRef, {
+                    name: addForm['vehicle-name'].value,
+                    color: addForm['vehicle-color'].value,
+                    quantity: parseInt(addForm['vehicle-quantity'].value),
+                    wheels: addForm['vehicle-wheels'].value
+                });
+                addForm.reset();
+                addVehicleFormContainer.classList.add('hidden');
+                showAddFormBtn.classList.remove('hidden');
+            } catch (error) {
+                console.error("Error adding document: ", error);
+            }
+        });
+
+        document.body.addEventListener('click', (e) => {
+            const target = e.target;
+            // Handle Edit
+            if (target.classList.contains('edit-btn')) {
+                const card = target.closest('[data-id]');
+                const id = card.getAttribute('data-id');
+                const name = card.querySelector('.font-semibold').textContent;
+                const color = card.querySelector('.text-sm span:first-child').textContent;
+                const quantity = card.querySelector('.text-sm span.font-bold').textContent;
+
+                editForm['edit-vehicle-id'].value = id;
+                editForm['edit-vehicle-name'].value = name;
+                editForm['edit-vehicle-color'].value = color;
+                editForm['edit-vehicle-quantity'].value = quantity;
+                openModal(editModal);
+            }
+            // Handle Delete
+            if (target.classList.contains('delete-btn')) {
+                itemToDeleteId = target.closest('[data-id]').getAttribute('data-id');
+                openModal(deleteModal);
+            }
+        });
+
+        // Edit Modal Listeners
+        document.getElementById('cancel-edit-btn').addEventListener('click', () => closeModal(editModal));
+        editModal.addEventListener('click', (e) => e.target === editModal && closeModal(editModal));
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = editForm['edit-vehicle-id'].value;
+            if (!vehiclesCollectionRef || !id) return console.error("DB not ready or ID missing.");
+            try {
+                await updateDoc(doc(vehiclesCollectionRef, id), {
+                    name: editForm['edit-vehicle-name'].value,
+                    color: editForm['edit-vehicle-color'].value,
+                    quantity: parseInt(editForm['edit-vehicle-quantity'].value)
+                });
+                closeModal(editModal);
+            } catch (error) {
+                console.error("Error updating document: ", error);
+            }
+        });
+
+        // Delete Modal Listeners
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => closeModal(deleteModal));
+        deleteModal.addEventListener('click', (e) => e.target === deleteModal && closeModal(deleteModal));
+        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+            if (!vehiclesCollectionRef || !itemToDeleteId) return console.error("DB not ready or ID to delete is missing.");
+            try {
+                await deleteDoc(doc(vehiclesCollectionRef, itemToDeleteId));
+                itemToDeleteId = null;
+                closeModal(deleteModal);
+            } catch (error) {
+                console.error("Error deleting document: ", error);
+            }
+        });
+    </script>
+</body>
+</html>
