@@ -42,8 +42,8 @@
     <div class="container mx-auto p-4 sm:p-6 lg:p-8">
 
         <header class="text-center mb-10">
-            <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">Vehicle Inventory</h1>
-            <p class="text-gray-600 mt-3 text-lg">Made by Sir Jeii.</p>
+            <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">Vehicle Inventory Pro</h1>
+            <p class="text-gray-600 mt-3 text-lg">Your dashboard for real-time stock management.</p>
              <!-- User ID Display -->
             <div id="user-info" class="mt-4 text-center hidden">
                 <p class="text-xs text-gray-500">User ID: <span id="user-id-display" class="font-mono bg-gray-200 p-1 rounded"></span></p>
@@ -146,17 +146,21 @@
     <!-- Edit Modal -->
     <div id="edit-modal" class="modal fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 hidden opacity-0">
         <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-md p-8 opacity-0 transform -translate-y-10">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800">Edit Vehicle Details</h2>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Edit Vehicle Color Entry</h2>
             <form id="edit-vehicle-form">
                 <input type="hidden" id="edit-vehicle-id">
-                <div class="space-y-5">
-                    <div>
-                        <label for="edit-vehicle-name" class="block text-sm font-medium text-gray-700">Model Name</label>
-                        <input type="text" id="edit-vehicle-name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3">
+                 <div class="space-y-5">
+                     <div>
+                        <label for="edit-vehicle-name-display" class="block text-sm font-medium text-gray-700">Model Name</label>
+                        <input type="text" id="edit-vehicle-name-display" disabled class="mt-1 block w-full bg-gray-100 border-gray-300 rounded-md shadow-sm sm:text-sm p-3">
                     </div>
                     <div>
                         <label for="edit-vehicle-color" class="block text-sm font-medium text-gray-700">Color</label>
                         <input type="text" id="edit-vehicle-color" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3">
+                    </div>
+                     <div>
+                        <label for="edit-vehicle-quantity" class="block text-sm font-medium text-gray-700">Quantity</label>
+                        <input type="number" id="edit-vehicle-quantity" min="0" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3">
                     </div>
                 </div>
                 <div class="mt-8 flex justify-end space-x-3">
@@ -175,8 +179,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
             </div>
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-5">Delete Vehicle</h3>
-            <p class="text-sm text-gray-500 mt-2">Are you sure you want to delete this item? This action cannot be undone.</p>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-5">Delete Entry</h3>
+            <p class="text-sm text-gray-500 mt-2">Are you sure you want to delete this color entry? This action cannot be undone.</p>
             <div class="mt-6 flex justify-center space-x-4">
                 <button id="cancel-delete-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg hover:bg-gray-300 transition duration-300">Cancel</button>
                 <button id="confirm-delete-btn" class="bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md hover:bg-red-700 transition duration-300">Delete</button>
@@ -348,12 +352,32 @@ const firebaseConfig = {
             return vehicles;
         };
 
-        // --- Rendering ---
+        // --- Data Processing & Rendering ---
+        const groupVehicles = (vehicleList) => {
+            const grouped = vehicleList.reduce((acc, vehicle) => {
+                const { name, color, quantity, wheels, id } = vehicle;
+                if (!acc[name]) {
+                    acc[name] = {
+                        name,
+                        wheels,
+                        totalQuantity: 0,
+                        colors: [],
+                    };
+                }
+                acc[name].colors.push({ color, quantity, id });
+                acc[name].totalQuantity += quantity;
+                return acc;
+            }, {});
+            return Object.values(grouped);
+        };
+
         function renderFilteredAndSortedInventory() {
+            const grouped = groupVehicles(allVehiclesCache);
+
             // 1. Filter
-            const filteredVehicles = allVehiclesCache.filter(vehicle =>
+            const filteredVehicles = grouped.filter(vehicle =>
                 vehicle.name.toLowerCase().includes(searchTerm) ||
-                vehicle.color.toLowerCase().includes(searchTerm)
+                vehicle.colors.some(c => c.color.toLowerCase().includes(searchTerm))
             );
 
             // 2. Sort
@@ -364,15 +388,15 @@ const firebaseConfig = {
                     case 'name-desc':
                         return b.name.localeCompare(a.name);
                     case 'qty-desc':
-                        return b.quantity - a.quantity;
+                        return b.totalQuantity - a.totalQuantity;
                     case 'qty-asc':
-                        return a.quantity - b.quantity;
+                        return a.totalQuantity - b.totalQuantity;
                     default:
                         return 0;
                 }
             });
 
-            // 3. Group by wheels
+            // 3. Group by wheels for tabbing
             const vehiclesByWheels = { '4': [], '3': [], '2': [] };
             filteredVehicles.forEach(vehicle => {
                 if (vehiclesByWheels[vehicle.wheels]) {
@@ -389,40 +413,44 @@ const firebaseConfig = {
         }
 
         const renderPanelContent = (vehicles, wheelCategory) => {
-            const totalCount = vehicles.reduce((sum, v) => sum + v.quantity, 0);
             return `
             <div class="text-center mb-6">
-                <p class="text-sm text-gray-500">Showing <span class="font-bold text-gray-700">${vehicles.length}</span> unique items.</p>
-                <p class="text-sm text-gray-500">Total stock count: <span class="font-bold text-gray-700">${totalCount}</span></p>
+                 <p class="text-sm text-gray-500">Showing <span class="font-bold text-gray-700">${vehicles.length}</span> unique models.</p>
             </div>
             ${vehicles.length > 0 ? `
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    ${vehicles.map(v => renderVehicleCard(v, v.id)).join('')}
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    ${vehicles.map(v => renderVehicleCard(v)).join('')}
                 </div>
-            ` : `<p class="text-gray-500 col-span-full text-center py-10">No vehicles match your search.</p>`}
+            ` : `<p class="text-gray-500 col-span-full text-center py-10">No vehicles match your search in this category.</p>`}
         `;
         }
         
-        const renderVehicleCard = (vehicle, id) => `
-            <div class="bg-white border border-gray-200 p-5 rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col" data-id="${id}" data-quantity="${vehicle.quantity}">
-                <div class="flex-grow">
-                    <h3 class="font-bold text-lg text-gray-900 truncate">${vehicle.name}</h3>
-                    <p class="text-sm text-gray-600 mt-1">
-                        <span class="font-medium">${vehicle.color}</span>
-                    </p>
+        const renderVehicleCard = (vehicle) => `
+            <div class="bg-white border border-gray-200 p-5 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col">
+                <h3 class="font-bold text-xl text-gray-900 truncate mb-3 pb-3 border-b">${vehicle.name}</h3>
+                <div class="space-y-3 flex-grow">
+                    ${vehicle.colors.map(c => renderColorRow(c)).join('')}
                 </div>
-                <div class="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                <div class="mt-4 pt-3 border-t text-right">
+                    <p class="text-sm font-bold">Total: <span class="text-blue-600 text-base">${vehicle.totalQuantity}</span></p>
+                </div>
+            </div>`;
+
+        const renderColorRow = (colorEntry) => `
+            <div class="flex justify-between items-center color-entry" data-id="${colorEntry.id}" data-quantity="${colorEntry.quantity}" data-color="${colorEntry.color}">
+                <span class="font-medium text-gray-700">${colorEntry.color}</span>
+                <div class="flex items-center gap-2">
                     <div class="flex items-center gap-3">
-                        <button class="quantity-btn bg-gray-200 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center font-bold text-xl hover:bg-gray-300" data-action="decrement" aria-label="Decrease quantity">-</button>
-                        <span class="font-bold text-xl text-blue-600 w-8 text-center quantity-display">${vehicle.quantity}</span>
-                        <button class="quantity-btn bg-gray-200 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center font-bold text-xl hover:bg-gray-300" data-action="increment" aria-label="Increase quantity">+</button>
+                        <button class="quantity-btn bg-gray-200 text-gray-700 rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg hover:bg-gray-300" data-action="decrement" aria-label="Decrease quantity">-</button>
+                        <span class="font-bold text-lg text-blue-600 w-8 text-center quantity-display">${colorEntry.quantity}</span>
+                        <button class="quantity-btn bg-gray-200 text-gray-700 rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg hover:bg-gray-300" data-action="increment" aria-label="Increase quantity">+</button>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <button class="edit-btn p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors" aria-label="Edit">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
+                    <div class="flex items-center">
+                        <button class="edit-btn p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors" aria-label="Edit">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
                         </button>
-                        <button class="delete-btn p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors" aria-label="Delete">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
+                        <button class="delete-btn p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors" aria-label="Delete">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
                         </button>
                     </div>
                 </div>
@@ -477,7 +505,7 @@ const firebaseConfig = {
             e.preventDefault();
             if (!vehiclesCollectionRef) return console.error("Database not ready.");
             try {
-                await addDoc(vehiclesCollectionRef, { name: addForm['vehicle-name'].value, color: addForm['vehicle-color'].value, quantity: parseInt(addForm['vehicle-quantity'].value), wheels: addForm['vehicle-wheels'].value });
+                await addDoc(vehiclesCollectionRef, { name: addForm['vehicle-name'].value.trim(), color: addForm['vehicle-color'].value.trim(), quantity: parseInt(addForm['vehicle-quantity'].value), wheels: addForm['vehicle-wheels'].value });
                 addForm.reset();
                 addVehicleFormContainer.classList.add('hidden');
                 document.getElementById('add-button-container').classList.remove('hidden');
@@ -498,43 +526,49 @@ const firebaseConfig = {
         
         // Main event delegation for card actions
         document.body.addEventListener('click', async (e) => {
-            const card = e.target.closest('[data-id]');
-            if (!card) return; 
+            const colorEntry = e.target.closest('.color-entry');
+            if (!colorEntry) return;
 
-            const id = card.getAttribute('data-id');
+            const id = colorEntry.dataset.id;
             const vehicleDocRef = doc(vehiclesCollectionRef, id);
 
             if(e.target.closest('.quantity-btn')) {
                 const action = e.target.closest('.quantity-btn').dataset.action;
-                let currentQuantity = parseInt(card.dataset.quantity);
+                let currentQuantity = parseInt(colorEntry.dataset.quantity);
                 
                 if (action === 'increment') {
                     currentQuantity++;
-                } else if (action === 'decrement' && currentQuantity > 1) {
+                } else if (action === 'decrement') {
                     currentQuantity--;
-                } else if (action === 'decrement' && currentQuantity <= 1){
-                    itemToDeleteId = id;
-                    openModal(deleteModal);
-                    return;
                 }
                 
-                card.querySelector('.quantity-display').textContent = currentQuantity;
-                card.dataset.quantity = currentQuantity;
+                if (currentQuantity < 0) currentQuantity = 0;
+                
+                // If quantity is 0, confirm deletion
+                if (currentQuantity === 0) {
+                     itemToDeleteId = id;
+                     openModal(deleteModal);
+                     return;
+                }
+                
+                // Optimistic UI update
+                colorEntry.querySelector('.quantity-display').textContent = currentQuantity;
+                colorEntry.dataset.quantity = currentQuantity;
                 
                 try {
                     await updateDoc(vehicleDocRef, { quantity: currentQuantity });
                 } catch(error) {
                     console.error("Error updating quantity: ", error);
+                    // Add code to revert UI on error if needed
                 }
             }
             
             if (e.target.closest('.edit-btn')) {
-                const name = card.querySelector('h3').textContent;
-                const color = card.querySelector('.text-sm span.font-medium').textContent;
-                
+                const vehicleName = colorEntry.closest('.flex-col').querySelector('h3').textContent;
                 editForm['edit-vehicle-id'].value = id;
-                editForm['edit-vehicle-name'].value = name;
-                editForm['edit-vehicle-color'].value = color;
+                editForm['edit-vehicle-name-display'].value = vehicleName;
+                editForm['edit-vehicle-color'].value = colorEntry.dataset.color;
+                editForm['edit-vehicle-quantity'].value = colorEntry.dataset.quantity;
                 openModal(editModal);
             }
 
@@ -571,8 +605,23 @@ const firebaseConfig = {
             e.preventDefault();
             const id = editForm['edit-vehicle-id'].value;
             if (!vehiclesCollectionRef || !id) return console.error("DB not ready or ID missing.");
+
+            const newQuantity = parseInt(editForm['edit-vehicle-quantity'].value);
+            const newColor = editForm['edit-vehicle-color'].value.trim();
+
+            if (newQuantity <= 0) {
+                // If new quantity is 0 or less, treat as a delete
+                itemToDeleteId = id;
+                closeModal(editModal);
+                openModal(deleteModal);
+                return;
+            }
+
             try {
-                await updateDoc(doc(vehiclesCollectionRef, id), { name: editForm['edit-vehicle-name'].value, color: editForm['edit-vehicle-color'].value });
+                await updateDoc(doc(vehiclesCollectionRef, id), { 
+                    color: newColor,
+                    quantity: newQuantity
+                });
                 closeModal(editModal);
             } catch (error) {
                 console.error("Error updating document: ", error);
